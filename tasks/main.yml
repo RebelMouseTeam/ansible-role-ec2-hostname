@@ -22,7 +22,7 @@
   ec2_facts:
 
 - name: set name for instance
-  script: "/usr/bin/env AWS_DEFAULT_REGION={{ ansible_ec2_placement_region }} {{ role_path }}/files/ec2_hostname.py {{ ansible_ec2_instance_id }} {{ '-n {}'.format(ec2_hostname_name) if ec2_hostname_name else '' }} {{ '-p {}'.format(ec2_hostname_name_prefix) if ec2_hostname_name_prefix else '' }} {{ '-a' if ec2_hostname_name_prefix_asg else '' }} {{ '-r {}'.format(ec2_hostname_retries) if ec2_hostname_retries else '' }} {{ '--overwrite' if ec2_hostname_overwrite else '' }} {{ '--verbose' if ec2_hostname_verbose else '' }} {{ '--debug' if ec2_hostname_debug else '' }}"
+  script: "/usr/bin/env AWS_DEFAULT_REGION={{ ansible_ec2_placement_region }} python3 {{ role_path }}/files/ec2_hostname.py {{ ansible_ec2_instance_id }} {{ '-n {}'.format(ec2_hostname_name) if ec2_hostname_name else '' }} {{ '-p {}'.format(ec2_hostname_name_prefix) if ec2_hostname_name_prefix else '' }} {{ '-a' if ec2_hostname_name_prefix_asg else '' }} {{ '-r {}'.format(ec2_hostname_retries) if ec2_hostname_retries else '' }} {{ '--overwrite' if ec2_hostname_overwrite else '' }} {{ '--verbose' if ec2_hostname_verbose else '' }} {{ '--debug' if ec2_hostname_debug else '' }}"
 
 - name: retrieve all tags on an instance
   ec2_tag:
