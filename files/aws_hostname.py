@@ -197,7 +197,7 @@ def main():
         args.instanceId and args.instanceId.strip(),
         args.name and args.name.strip(),
         args.namePrefix and args.namePrefix.strip(),
-        args.namePrefixAsg and args.namePrefixAsg.strip(),
+        args.namePrefixAsg,
         args.overwrite,
         args.retries)
 
