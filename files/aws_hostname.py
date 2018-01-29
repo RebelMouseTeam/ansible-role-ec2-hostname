@@ -61,58 +61,28 @@ def set_tag(instance_id, tag, value):
     logger.debug('create_tags response: "{}"'.format(response))
 
 
-def set_instance_name(
-    instance_id,
-    name_tag,
-    group_tag,
-    name_prefix,
-    name_overwrite,
-    retries
-):
-    instance = get_instance(instance_id)
-    if not instance:
-        logger.critical('instance not found "{}"'.format(instance_id))
-        exit(1)
+def set_name(instance_id, name):
+    set_tag(instance_id, 'Name', name)
 
-    logger.debug('instance "{}"'.format(instance))
 
-    name = get_tag(instance, name_tag)
-    if name and not name_overwrite:
-        logger.error('instance already has name "{}"'.format(name))
-        exit(1)
-    logger.info('instance name "{}"'.format(name or ''))
-
-    if not name_prefix:
-        if 'Tags' not in instance:
-            logger.critical('instance tags not found "{}"'.format(instance_id))
-            exit(1)
-
-        group = get_tag(instance, group_tag)
-        if group:
-            logger.info('instance group "{}"'.format(group))
-            name_prefix = group
-        else:
-            message = 'instance has no group tag "{}" to use as name prefix'
-            logger.critical(message.format(instance_id))
-            exit(1)
-
+def set_name_prefix(instance_id, name_prefix, retries):
     logger.info('instance name prefix "{}"'.format(name_prefix))
 
     instances = get_instances()
     instance_names = get_instance_names(
-        name_tag, instances)
+        'Name', instances)
 
     logger.info('existing names "{}"'.format(instance_names))
 
     n = 0
     while retries > 0:
         n += 1
-        name = '{}{}'.format(name_prefix, n)
-        if name in instance_names:
+        instance_name = '{}{}'.format(name_prefix, n)
+        if instance_name in instance_names:
             continue
 
-        logger.info('trying name "{}"'.format(name))
-        set_tag(instance_id, name_tag, name)
+        logger.info('trying name "{}"'.format(instance_name))
+        set_tag(instance_id, 'Name', instance_name)
 
         # sleep 1-10 seconds before verify collisions in group
         # random time is used to prevent simultanious execution
@@ -122,16 +92,16 @@ def set_instance_name(
 
         instances = get_instances()
         instance_names = get_instance_names(
-            name_tag, instances)
+            'Name', instances)
 
-        if instance_names.count(name) > 1:
-            logger.warning('name collision "{}"'.format(name))
-        elif instance_names.count(name) == 1:
-            logger.info('name successfully set "{}"'.format(name))
+        if instance_names.count(instance_name) > 1:
+            logger.warning('name collision "{}"'.format(instance_name))
+        elif instance_names.count(instance_name) == 1:
+            logger.info('name successfully set "{}"'.format(instance_name))
             break
         else:
             logger.error(
-                'name not found after set "{}"'.format(name))
+                'name not found after set "{}"'.format(instance_name))
 
         retries -= 1
         continue
@@ -140,31 +110,76 @@ def set_instance_name(
         exit(1)
 
 
+def set_name_prefix_asg(instance_id, retries):
+    instance = get_instance(instance_id)
+    name_prefix = get_tag(instance, 'aws:autoscaling:groupName')
+    if not name_prefix:
+        logger.error('instance has no asg attached "{}"'.format(instance_id))
+        exit(1)
+    return set_name_prefix(instance_id, name_prefix, retries)
+
+
+def hostname(
+    instance_id,
+    name,
+    name_prefix,
+    name_prefix_asg,
+    overwrite,
+    retries
+):
+    instance = get_instance(instance_id)
+    if not instance:
+        logger.critical('instance not found "{}"'.format(instance_id))
+        exit(1)
+    logger.debug('instance "{}"'.format(instance))
+
+    instance_name = get_tag(instance, 'Name')
+    if name and not overwrite:
+        logger.error('instance already has name "{}"'.format(instance_name))
+        exit(1)
+    logger.info('instance name "{}"'.format(instance_name or ''))
+
+    if name:
+        return set_name(instance_id, name)
+    elif name_prefix:
+        return set_name_prefix(instance_id, name_prefix, retries)
+    elif name_prefix_asg:
+        return set_name_prefix_asg(instance_id, retries)
+    else:
+        logger.critical(
+            'naming scheme not found, please provide one'
+            ' of following arguments: name, namePrefix, namePrefixAsg')
+        exit(1)
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Host Naming')
+    parser = argparse.ArgumentParser(description='EC2 Hostname')
     parser.add_argument('instanceId', help='EC2 instance id')
     parser.add_argument(
         '-n',
-        '--nameTag',
-        help='Tag where name value should be set("Name" by default)',
-        default='Name')
+        '--name',
+        help='Use value for instance tag:Name',
+        type=str,
+        default='')
     parser.add_argument(
-        '-g',
-        '--groupTag',
-        help='Tag where group value is stored("Group" by default)',
-        default='Group')
+        '-p',
+        '--namePrefix',
+        help='Use value as prefix for instance tag:Name',
+        type=str,
+        default='')
+    parser.add_argument(
+        '-a',
+        '--namePrefixAsg',
+        help='Use ASG name as prefix for instance tag:Name',
+        action='store_true',
+        default=False)
+
     parser.add_argument(
         '-r',
         '--retries',
         help='Max retries for setting new name',
         type=int,
         default=10)
-    parser.add_argument(
-        '-p',
-        '--namePrefix',
-        help='Name perfix',
-        type=str,
-        default='')
     parser.add_argument('--overwrite', action='store_true', default=False)
     parser.add_argument('--verbose', action='store_true', default=False)
     parser.add_argument('--debug', action='store_true', default=False)
@@ -178,11 +193,11 @@ def main():
         logger.setLevel(logging.WARNING)
 
     logger.debug('parse arguments "{}"'.format(args))
-    set_instance_name(
+    hostname(
         args.instanceId and args.instanceId.strip(),
-        args.nameTag and args.nameTag.strip(),
-        args.groupTag and args.groupTag.strip(),
+        args.name and args.name.strip(),
         args.namePrefix and args.namePrefix.strip(),
+        args.namePrefixAsg and args.namePrefixAsg.strip(),
         args.overwrite,
         args.retries)
 
