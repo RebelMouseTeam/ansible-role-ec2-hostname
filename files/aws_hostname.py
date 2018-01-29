@@ -134,7 +134,7 @@ def hostname(
     logger.debug('instance "{}"'.format(instance))
 
     instance_name = get_tag(instance, 'Name')
-    if name and not overwrite:
+    if instance_name and not overwrite:
         logger.error('instance already has name "{}"'.format(instance_name))
         exit(1)
     logger.info('instance name "{}"'.format(instance_name or ''))
