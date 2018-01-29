@@ -1,0 +1,46 @@
+---
+- name: update apt-cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: ensure required packages
+  apt:
+    name:
+      - python3-pip
+      - python-boto
+    state: present
+    cache_valid_time: 3600
+
+- name: install boto3
+  pip:
+    executable: pip3
+    name: boto3
+    state: present
+
+- name: gather ec2 facts
+  ec2_facts:
+
+- name: set name for instance
+  script: "/usr/bin/env AWS_DEFAULT_REGION={{ ansible_ec2_placement_region }} {{ role_path }}/files/host_naming.py {{ ansible_ec2_instance_id }} {{ '-n {}'.format(host_naming_name_tag) if host_naming_name_tag else '' }} {{ '-g {}'.format(host_naming_group_tag) if host_naming_group_tag else '' }} {{ '-r {}'.format(host_naming_retries) if host_naming_retries else '' }}  {{ '--namePrefix {}'.format(host_naming_name_prefix) if host_naming_name_prefix else '' }} {{ '--overwrite' if host_naming_overwrite else '' }} {{ '--verbose' if host_naming_verbose else '' }} {{ '--debug' if host_naming_debug else '' }}"
+
+- name: retrieve all tags on an instance
+  ec2_tag:
+    region: "{{ ansible_ec2_placement_region }}"
+    resource: "{{ ansible_ec2_instance_id }}"
+    state: list
+  register: ec2_tags
+  when: host_naming_set_hostname
+
+- name: set hostname
+  hostname:
+    name: "{{ ec2_tags.tags.Name }}"
+
+- name: set hostname in /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.0\.1'
+    line: '127.0.0.1 localhost {{ ec2_tags.tags.Name }}'
+    owner: root
+    group: root
+    mode: 0644
