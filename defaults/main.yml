@@ -1,0 +1,9 @@
+---
+ec2_hostname_name:
+ec2_hostname_name_prefix:
+ec2_hostname_name_prefix_asg: 'False'
+ec2_hostname_retries: 10
+ec2_hostname_overwrite: no
+ec2_hostname_verbose: 'True'
+ec2_hostname_debug: 'False'
+ec2_hostname_linux_hostname: 'True'
